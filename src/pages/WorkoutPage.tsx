@@ -108,13 +108,13 @@ export default function WorkoutPage() {
       <PageHeader title={workout.name} subtitle={`${formatDuration(elapsed)} · ${doneSets}/${totalSets} sets`}
         actions={<button className="btn btn-primary btn-sm" onClick={finish}><Check size={16} /> Finish</button>} />
       <div className="px-3 space-y-3 pb-24">
-        <input className="bg-transparent w-full px-2 text-sm text-muted outline-none" value={workout.name} onChange={(e) => updateActive((w) => ({ ...w, name: e.target.value }))} aria-label="Workout name" />
         {workout.exercises.map((we, i) => {
           const ex = exMap.get(we.exerciseId)
           if (!ex) return null
           return <ExerciseCard key={we.id} we={we} exercise={ex} suggestion={suggestions[we.id]} history={history} settings={settings} index={i} count={workout.exercises.length} />
         })}
         <button className="btn btn-secondary w-full" onClick={() => setPicker(true)}><Plus size={18} /> Add exercise</button>
+        <label className="block"><span className="label">Workout name</span><input className="field mt-1" value={workout.name} onChange={(e) => updateActive((w) => ({ ...w, name: e.target.value }))} /></label>
         <textarea className="field py-3 min-h-[72px]" placeholder="Workout notes" defaultValue={workout.notes ?? ''} onBlur={(e) => updateActive((w) => ({ ...w, notes: e.target.value || undefined }))} />
         <button className="btn btn-danger w-full" onClick={async () => { if (await confirmDialog({ title: 'Discard workout?', body: 'All sets in this workout will be lost.', confirmText: 'Discard', danger: true })) discardWorkout() }}><Trash2 size={18} /> Discard workout</button>
       </div>

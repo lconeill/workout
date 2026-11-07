@@ -16,6 +16,11 @@ import { confirmDialog } from '../ui/Confirm'
 
 interface Props { we: WorkoutExercise; exercise: Exercise; suggestion?: Suggestion; history: Workout[]; settings: Settings; index: number; count: number }
 
+/** A fake finished workout containing only this exercise's done sets (minus the one being toggled). */
+function activeSnapshot(we: WorkoutExercise, excludeSetId: string): Workout {
+  return { id: 'active', name: '', startedAt: 0, endedAt: 1, exercises: [{ ...we, sets: we.sets.filter((s) => s.id !== excludeSetId && s.done) }] }
+}
+
 const KIND_NOTE: Record<Suggestion['kind'], string> = { first: 'First time', increase: 'Go up', hold: 'Hold', deload: 'Deload', reps: 'More reps' }
 
 export function ExerciseCard({ we, exercise, suggestion, history, settings, index, count }: Props) {
@@ -24,7 +29,8 @@ export function ExerciseCard({ we, exercise, suggestion, history, settings, inde
   const [notesOpen, setNotesOpen] = useState(false)
   const [restOpen, setRestOpen] = useState(false)
   const units = settings.units
-  const records = useMemo(() => computeRecords(history, exercise.id), [history, exercise.id])
+  const baseRecords = useMemo(() => computeRecords(history, exercise.id), [history, exercise.id])
+  const hasHistory = baseRecords.bestWeightLb > 0 || baseRecords.bestE1rmLb > 0
   const lastSets = useMemo(() => {
     const s = sessionsFor(history, exercise.id)
     return s.length ? s[s.length - 1].sets : []
@@ -39,7 +45,12 @@ export function ExerciseCard({ we, exercise, suggestion, history, settings, inde
     const weightLb = set.weightLb ?? (exercise.kind === 'reps_only' || exercise.kind === 'duration' ? 0 : null)
     if (reps == null || (weightLb == null && exercise.kind === 'weight_reps')) { toast('Enter weight and reps first'); return }
     const next = { ...set, reps, weightLb, done: true }
-    const pr = exercise.kind === 'weight_reps' || exercise.kind === 'weighted_bodyweight' ? detectSetPrs(next, records) : []
+    // Records = history + sets already completed in this session, so the 2nd set at a new weight isn't a second PR.
+    const records = computeRecords([{ ...activeSnapshot(we, setId) }], exercise.id)
+    records.bestWeightLb = Math.max(records.bestWeightLb, baseRecords.bestWeightLb)
+    records.bestE1rmLb = Math.max(records.bestE1rmLb, baseRecords.bestE1rmLb)
+    for (const [w, r] of baseRecords.repsAtWeight) if ((records.repsAtWeight.get(w) ?? 0) < r) records.repsAtWeight.set(w, r)
+    const pr = hasHistory && (exercise.kind === 'weight_reps' || exercise.kind === 'weighted_bodyweight') ? detectSetPrs(next, records) : []
     updateSet(we.id, setId, { done: true, reps, weightLb, pr: pr.length ? pr : undefined })
     buzz(30)
     if (pr.length) toast(`PR! ${pr.includes('weight') ? 'Heaviest ever' : pr.includes('e1rm') ? 'Best estimated 1RM' : 'Most reps at this weight'}`, 'pr')

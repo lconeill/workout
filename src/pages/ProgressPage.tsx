@@ -2,6 +2,7 @@ import { Plus, Scale } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { LevelBar, levelColor } from '@/components/LevelBar'
 import { Sheet } from '@/components/ui/Sheet'
 import { NumberField } from '@/components/ui/NumberField'
 import { Segmented } from '@/components/ui/Segmented'
@@ -161,21 +162,6 @@ export default function ProgressPage() {
         )}
       </div>
       {logBw && <BodyweightSheet onClose={() => setLogBw(false)} units={units} current={bw} />}
-    </div>
-  )
-}
-
-export function levelColor(i: number) {
-  return ['text-muted', 'text-text-2', 'text-accent', 'text-success', 'text-pr'][i + 1] ?? 'text-muted'
-}
-export function LevelBar({ levelIndex, progress }: { levelIndex: number; progress: number }) {
-  return (
-    <div className="flex-1 flex gap-1">
-      {[0, 1, 2, 3, 4].map((i) => (
-        <div key={i} className="flex-1 h-2 rounded-full bg-surface-3 overflow-hidden">
-          <div className="h-full bg-accent" style={{ width: i < levelIndex ? '100%' : i === levelIndex ? `${progress * 100}%` : i === levelIndex + 1 && levelIndex < 0 ? `${progress * 100}%` : '0%' }} />
-        </div>
-      ))}
     </div>
   )
 }

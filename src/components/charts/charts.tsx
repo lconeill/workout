@@ -38,7 +38,7 @@ function baseOptions(theme: string, fmt?: (v: number) => string, yMin?: number):
     },
     scales: {
       x: { grid: { display: false }, border: { color: grid }, ticks: { color: ink, maxRotation: 0, autoSkip: true, maxTicksLimit: 6, font: { size: 11 } } },
-      y: { min: yMin, grid: { color: grid, lineWidth: 1 }, border: { display: false }, ticks: { color: ink, maxTicksLimit: 5, font: { size: 11 }, callback: (v) => (fmt ? fmt(Number(v)) : v) } },
+      y: { min: yMin, grid: { color: grid, lineWidth: 1 }, border: { display: false }, ticks: { color: ink, maxTicksLimit: 5, precision: 0, font: { size: 11 }, callback: (v) => (fmt ? fmt(Number(v)) : v) } },
     },
     elements: { point: { borderColor: surface, borderWidth: 2 } },
   }

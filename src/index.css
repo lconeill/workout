@@ -85,6 +85,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 .pb-nav { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
 
+@layer components {
 /* ---- Components ------------------------------------------------------- */
 .card {
   background: var(--surface);
@@ -140,3 +141,5 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Ring */
 .ring-track { stroke: var(--surface-3); }
+
+}

@@ -91,9 +91,9 @@ export default function HomePage() {
           <div className="card p-4">
             <div className="text-lg font-bold">No program selected</div>
             <p className="text-sm text-muted mb-3">Pick a built-in program or build your own routine.</p>
-            <div className="flex gap-2">
-              <Link to="/routines" className="btn btn-primary flex-1">Choose program</Link>
-              <button className="btn btn-secondary flex-1" onClick={() => nav('/workout')}>Quick start</button>
+            <div className="flex flex-col gap-2">
+              <Link to="/routines" className="btn btn-primary">Choose program</Link>
+              <button className="btn btn-secondary" onClick={() => nav('/workout')}>Start an empty workout</button>
             </div>
           </div>
         )}

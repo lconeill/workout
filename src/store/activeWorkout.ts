@@ -4,6 +4,8 @@ import { LINEAR_PROGRAM_IDS } from '@/data/programs'
 import { uid } from '@/logic/dates'
 import { suggest, type Suggestion } from '@/logic/progression'
 import { computeRecords, detectSetPrs, isCountedSet } from '@/logic/records'
+import { warmupRamp } from '@/logic/plates'
+import { roundTo } from '@/logic/units'
 import { createStore } from './tiny'
 import { stopRest } from './restTimer'
 
@@ -39,9 +41,21 @@ export function buildExercise(
   })
   const template = routineSets ?? Array.from({ length: 3 }, () => ({ minReps: exercise.repRange.min, maxReps: exercise.repRange.max, type: 'working' as SetType }))
   const lastWorking = suggestion.lastSets ?? []
+  const nWarm = template.filter((t) => t.type === 'warmup').length
+  const working = suggestion.weightLb ?? 0
+  const barLb = exercise.equipment === 'barbell' ? settings.barWeightLb : 0
+  const step = Math.max(exercise.incrementLb, settings.units === 'kg' ? 2.5 : 2.5)
+  const ramp = nWarm && working > 0 && exercise.kind === 'weight_reps'
+    ? warmupRamp(working, barLb, step).filter((r) => r.weightLb > 0).map((r) => ({ ...r, weightLb: roundTo(r.weightLb, step) })).slice(-nWarm)
+    : []
+  let warmIdx = 0
   const sets: WorkoutSet[] = template.map((t, i) => {
     const s = newSet(t.type, t.minReps, t.maxReps)
-    if (t.type === 'warmup') return s
+    if (t.type === 'warmup') {
+      const r = ramp[warmIdx++]
+      if (r) { s.weightLb = r.weightLb; s.reps = r.reps }
+      return s
+    }
     // Prefill with suggestion weight; reps from suggestion (or last session's per-set reps if holding)
     s.weightLb = suggestion.weightLb
     const lastRep = lastWorking[i]?.reps
@@ -145,9 +159,10 @@ export async function finishWorkout(settings: Settings): Promise<FinishSummary |
     const sets = we.sets.filter((x) => x.done && (x.reps ?? 0) > 0)
     if (!sets.length) continue
     const rec = computeRecords(history, we.exerciseId)
+    const hasHistory = rec.bestWeightLb > 0 || rec.bestE1rmLb > 0
     const marked = sets.map((x) => {
       if (!isCountedSet(x)) return { ...x, pr: undefined }
-      const pr = detectSetPrs(x, rec)
+      const pr = hasHistory ? detectSetPrs(x, rec) : []
       // update running records so a second PR set in the same session is judged against the first
       if (pr.includes('weight')) rec.bestWeightLb = x.weightLb ?? 0
       if (pr.includes('e1rm')) rec.bestE1rmLb = Math.max(rec.bestE1rmLb, (x.weightLb ?? 0) * (1 + Math.min(x.reps ?? 0, 12) / 30))

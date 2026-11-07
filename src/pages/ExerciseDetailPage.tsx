@@ -17,7 +17,7 @@ import { computeRecords, isCountedSet, sessionSeries } from '@/logic/records'
 import { rateLift } from '@/logic/standards'
 import { formatVolume, formatWeight, fromLb } from '@/logic/units'
 import { progressionOpts } from '@/store/activeWorkout'
-import { LevelBar, levelColor } from './ProgressPage'
+import { LevelBar, levelColor } from '@/components/LevelBar'
 
 type Metric = 'e1rm' | 'weight' | 'volume'
 

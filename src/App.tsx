@@ -1,15 +1,16 @@
+import { lazy, Suspense } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { ToastHost } from './components/ui/Toast'
 import HomePage from './pages/HomePage'
 import WorkoutPage from './pages/WorkoutPage'
-import NutritionPage from './pages/NutritionPage'
-import ProgressPage from './pages/ProgressPage'
+const NutritionPage = lazy(() => import('./pages/NutritionPage'))
+const ProgressPage = lazy(() => import('./pages/ProgressPage'))
 import MorePage from './pages/MorePage'
 import RoutinesPage from './pages/RoutinesPage'
 import RoutineEditPage from './pages/RoutineEditPage'
 import ExercisesPage from './pages/ExercisesPage'
-import ExerciseDetailPage from './pages/ExerciseDetailPage'
+const ExerciseDetailPage = lazy(() => import('./pages/ExerciseDetailPage'))
 import HistoryPage from './pages/HistoryPage'
 import WorkoutDetailPage from './pages/WorkoutDetailPage'
 import SettingsPage from './pages/SettingsPage'
@@ -17,8 +18,10 @@ import SettingsPage from './pages/SettingsPage'
 export default function App() {
   return (
     <HashRouter>
+      <Suspense fallback={<div className="p-8 text-center text-muted">Loading…</div>}>
       <Routes>
         <Route element={<Layout />}>
+          {/* chart pages are code-split */}
           <Route path="/" element={<HomePage />} />
           <Route path="/workout" element={<WorkoutPage />} />
           <Route path="/nutrition" element={<NutritionPage />} />
@@ -34,6 +37,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+      </Suspense>
       <ToastHost />
     </HashRouter>
   )
