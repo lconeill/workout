@@ -37,12 +37,24 @@ export function ExerciseCard({ we, exercise, suggestion, history, settings, inde
   }, [history, exercise.id])
   const fw = (lb: number) => formatWeight(lb, units, true)
 
+  const applySuggestion = () => {
+    if (!suggestion) return
+    updateExercise(we.id, (e) => ({ ...e, sets: e.sets.map((s) => (s.type === 'warmup' || s.done ? s : { ...s, weightLb: suggestion.weightLb ?? s.weightLb, reps: suggestion.reps ?? s.reps })) }))
+    toast('Applied')
+  }
+
+  const workingIdx = (() => { let n = 0; return we.sets.map((s) => (s.type === 'working' || s.type === 'drop' || s.type === 'failure' ? ++n : 0)) })()
+  const lastWorking = lastSets.filter((s) => s.type !== 'warmup')
+
   const toggleDone = (setId: string) => {
     const set = we.sets.find((s) => s.id === setId)
     if (!set) return
     if (set.done) { updateSet(we.id, setId, { done: false, pr: undefined }); return }
-    const reps = set.reps ?? (set.targetMin ?? null)
-    const weightLb = set.weightLb ?? (exercise.kind === 'reps_only' || exercise.kind === 'duration' ? 0 : null)
+    // Empty fields fall back to last session's values for the same set number, then the rep target.
+    const idx = we.sets.indexOf(set)
+    const prev = set.type === 'warmup' ? undefined : lastWorking[workingIdx[idx] - 1]
+    const reps = set.reps ?? prev?.reps ?? (set.targetMin ?? null)
+    const weightLb = set.weightLb ?? prev?.weightLb ?? (exercise.kind === 'reps_only' || exercise.kind === 'duration' ? 0 : null)
     if (reps == null || (weightLb == null && exercise.kind === 'weight_reps')) { toast('Enter weight and reps first'); return }
     const next = { ...set, reps, weightLb, done: true }
     // Records = history + sets already completed in this session, so the 2nd set at a new weight isn't a second PR.
@@ -57,14 +69,6 @@ export function ExerciseCard({ we, exercise, suggestion, history, settings, inde
     if (settings.autoStartRest && set.type !== 'warmup') startRest(we.restSec)
   }
 
-  const applySuggestion = () => {
-    if (!suggestion) return
-    updateExercise(we.id, (e) => ({ ...e, sets: e.sets.map((s) => (s.type === 'warmup' || s.done ? s : { ...s, weightLb: suggestion.weightLb ?? s.weightLb, reps: suggestion.reps ?? s.reps })) }))
-    toast('Applied')
-  }
-
-  const workingIdx = (() => { let n = 0; return we.sets.map((s) => (s.type === 'working' || s.type === 'drop' || s.type === 'failure' ? ++n : 0)) })()
-  const lastWorking = lastSets.filter((s) => s.type !== 'warmup')
 
   return (
     <section className="card overflow-hidden">
