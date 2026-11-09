@@ -30,7 +30,15 @@ export default function HomePage() {
   const targets = effectiveTargets(settings, latestBodyweight(measurements))
 
   const program = programs.find((p) => p.id === settings.activeProgramId)
-  const next = program ? routines.find((r) => r.id === program.routineIds[settings.programCursor % program.routineIds.length]) : undefined
+  const next = program && program.routineIds.length ? routines.find((r) => r.id === program.routineIds[settings.programCursor % program.routineIds.length]) : undefined
+  const todayDow = new Date().getDay()
+  const isRestDay = !!program?.trainingDays?.length && !program.trainingDays.includes(todayDow)
+  const nextTrainingDay = (() => {
+    if (!program?.trainingDays?.length) return null
+    for (let i = 1; i <= 7; i++) { const d = (todayDow + i) % 7; if (program.trainingDays.includes(d)) return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d] }
+    return null
+  })()
+  const trainedToday = workouts.some((w) => dayKey(w.startedAt) === today)
 
   const week = useMemo(() => {
     const start = startOfWeek().getTime()
@@ -80,9 +88,16 @@ export default function HomePage() {
             <div className="flex-1"><div className="font-bold">Workout in progress</div><div className="text-sm text-muted">{activeW.name}</div></div>
             <ChevronRight className="text-muted" />
           </button>
+        ) : next && isRestDay && !trainedToday ? (
+          <div className="card p-4">
+            <div className="label text-muted mb-1">Rest day · {program?.name}</div>
+            <div className="text-2xl font-bold">Recover today</div>
+            <div className="text-sm text-muted mb-3">Next up: <span className="text-text-2 font-medium">{next.name}</span>{nextTrainingDay ? ` on ${nextTrainingDay}` : ''}</div>
+            <button className="btn btn-secondary w-full" onClick={() => startWorkout(next, next.name, exMap, settings).then(() => nav('/workout'))}><Play size={18} /> Train anyway</button>
+          </div>
         ) : next ? (
           <div className="card p-4">
-            <div className="label text-accent mb-1">Up next · {program?.name}</div>
+            <div className="label text-accent mb-1">{trainedToday ? 'Next session' : 'Up next'} · {program?.name}</div>
             <div className="text-2xl font-bold">{next.name}</div>
             <div className="text-sm text-muted mb-3 truncate">{next.exercises.map((e) => exMap.get(e.exerciseId)?.name).filter(Boolean).join(' · ')}</div>
             <button className="btn btn-primary w-full" onClick={() => startWorkout(next, next.name, exMap, settings).then(() => nav('/workout'))}><Play size={18} /> Start workout</button>

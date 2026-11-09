@@ -56,6 +56,8 @@ export interface Program {
   description: string
   routineIds: string[]
   isBuiltIn: boolean
+  /** Days of week you train (0 = Sunday … 6 = Saturday). Empty/undefined = any day. */
+  trainingDays?: number[]
 }
 
 export interface WorkoutSet {
