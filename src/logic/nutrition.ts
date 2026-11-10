@@ -1,4 +1,4 @@
-import type { Measurement, NutritionEntry, NutritionTargets, Settings } from '@/db/types'
+import type { DailyLog, Measurement, NutritionEntry, NutritionTargets, Settings, WaterUnit } from '@/db/types'
 import { addDays } from './dates'
 
 export interface DayTotals { calories: number; proteinG: number; carbsG: number; fatG: number; count: number }
@@ -53,6 +53,30 @@ export function effectiveTargets(settings: Pick<Settings, 'nutritionTargets' | '
     t.proteinG = Math.round(settings.proteinPerLb * latestBodyweightLb)
   }
   return t
+}
+
+/** Consecutive days with creatine ticked, counting back from `todayKey`. An unticked today doesn't break the streak (it isn't over yet). */
+export function creatineStreak(logs: DailyLog[], todayKey: string): number {
+  const taken = new Set(logs.filter((l) => l.creatine).map((l) => l.date))
+  let k = taken.has(todayKey) ? todayKey : addDays(todayKey, -1)
+  let n = 0
+  while (taken.has(k)) { n++; k = addDays(k, -1) }
+  return n
+}
+
+export const ML_PER_OZ = 29.5735
+
+export function waterToUnit(ml: number, unit: WaterUnit): number {
+  return unit === 'oz' ? ml / ML_PER_OZ : ml
+}
+export function waterFromUnit(v: number, unit: WaterUnit): number {
+  return Math.round(unit === 'oz' ? v * ML_PER_OZ : v)
+}
+/** "1.25 L", "750 ml", "42 oz" */
+export function formatWater(ml: number, unit: WaterUnit): string {
+  if (unit === 'oz') return `${Math.round(waterToUnit(ml, 'oz'))} oz`
+  if (ml >= 1000) return `${(ml / 1000).toFixed(ml % 1000 === 0 ? 0 : ml % 100 === 0 ? 1 : 2)} L`
+  return `${Math.round(ml)} ml`
 }
 
 export function latestBodyweight(measurements: Measurement[]): number | undefined {

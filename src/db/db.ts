@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Exercise, Measurement, NutritionEntry, Program, QuickFood, Routine, Settings, Workout } from './types'
+import type { DailyLog, Exercise, Measurement, NutritionEntry, Program, QuickFood, Routine, Settings, Workout } from './types'
 
 export class LiftDB extends Dexie {
   exercises!: EntityTable<Exercise, 'id'>
@@ -10,6 +10,7 @@ export class LiftDB extends Dexie {
   nutritionEntries!: EntityTable<NutritionEntry, 'id'>
   quickFoods!: EntityTable<QuickFood, 'id'>
   settings!: EntityTable<Settings, 'id'>
+  dailyLog!: EntityTable<DailyLog, 'date'>
 
   constructor(name = 'lift') {
     super(name)
@@ -23,6 +24,7 @@ export class LiftDB extends Dexie {
       quickFoods: 'id, name, uses',
       settings: 'id',
     })
+    this.version(2).stores({ dailyLog: 'date' })
   }
 }
 

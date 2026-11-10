@@ -14,6 +14,7 @@ import { useExerciseMap } from '@/hooks/useData'
 import { requestNotifyPermission } from '@/store/restTimer'
 import { dayKey } from '@/logic/dates'
 import { formatWeight, fromLb, toLb } from '@/logic/units'
+import { waterFromUnit, waterToUnit } from '@/logic/nutrition'
 
 function download(name: string, text: string, type = 'application/json') {
   const blob = new Blob([text], { type })
@@ -74,6 +75,15 @@ export default function SettingsPage() {
             <label><span className="label">Fat (g) · optional</span><NumberField className="mt-1" value={s.nutritionTargets.fatG ?? null} onChange={(v) => updateSettings({ nutritionTargets: { ...s.nutritionTargets, fatG: v ?? undefined } })} integer placeholder="—" /></label>
           </div>
           <div className="px-4 pb-3 flex items-center gap-3"><div className="flex-1"><div className="font-medium">Protein from bodyweight</div><div className="text-xs text-muted">g per lb of latest logged bodyweight (0.7–1.0 typical). Leave blank to use the fixed target.</div></div><div className="w-20"><NumberField value={s.proteinPerLb ?? null} onChange={(v) => updateSettings({ proteinPerLb: v ?? undefined })} placeholder="—" /></div></div>
+        </Section>
+
+        <Section title="Water & creatine">
+          <div className="px-4 py-3 grid grid-cols-2 gap-3">
+            <label><span className="label">Daily target ({s.waterUnit})</span><NumberField className="mt-1" value={Math.round(waterToUnit(s.waterTargetMl, s.waterUnit))} onChange={(v) => v != null && v > 0 && updateSettings({ waterTargetMl: waterFromUnit(v, s.waterUnit) })} integer /></label>
+            <label><span className="label">Glass size ({s.waterUnit})</span><NumberField className="mt-1" value={Math.round(waterToUnit(s.waterGlassMl, s.waterUnit))} onChange={(v) => v != null && v > 0 && updateSettings({ waterGlassMl: waterFromUnit(v, s.waterUnit) })} integer /></label>
+          </div>
+          <div className="px-4 py-3 flex items-center gap-3"><div className="flex-1"><div className="font-medium">Water unit</div><div className="text-xs text-muted">Logged amounts are kept; only the display changes.</div></div><Segmented className="w-32" value={s.waterUnit} options={[{ value: 'ml', label: 'ml' }, { value: 'oz', label: 'oz' }]} onChange={(v) => updateSettings({ waterUnit: v })} /></div>
+          <div className="px-4 py-3 text-xs text-muted">Creatine is a daily tick on the Nutrition page; it tracks your streak.</div>
         </Section>
 
         <Section title="Appearance">

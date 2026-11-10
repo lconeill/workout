@@ -120,6 +120,14 @@ export interface QuickFood {
 
 export interface NutritionTargets { calories: number; proteinG: number; carbsG?: number; fatG?: number }
 
+/** One row per day: habits that aren't food entries. */
+export interface DailyLog {
+  date: string // YYYY-MM-DD
+  creatine: boolean
+  waterMl: number
+}
+export type WaterUnit = 'ml' | 'oz'
+
 export interface Settings {
   id: 'settings'
   units: 'lb' | 'kg'
@@ -136,6 +144,9 @@ export interface Settings {
   programCursor: number
   nutritionTargets: NutritionTargets
   proteinPerLb?: number
+  waterTargetMl: number
+  waterGlassMl: number
+  waterUnit: WaterUnit
   seedVersion: number
 }
 
@@ -153,6 +164,9 @@ export const DEFAULT_SETTINGS: Settings = {
   deloadPct: 10,
   programCursor: 0,
   nutritionTargets: { calories: 2500, proteinG: 170 },
+  waterTargetMl: 3000,
+  waterGlassMl: 250,
+  waterUnit: 'ml',
   seedVersion: 0,
 }
 

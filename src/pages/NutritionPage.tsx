@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Flame, Plus, Star, Trash2 } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Droplets, Flame, Minus, Pill, Plus, Star, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -6,14 +6,16 @@ import { Ring } from '@/components/ui/Ring'
 import { Sheet } from '@/components/ui/Sheet'
 import { NumberField } from '@/components/ui/NumberField'
 import { toast } from '@/components/ui/Toast'
-import { LineChart } from '@/components/charts/charts'
+import { BarChart, LineChart, cssVar } from '@/components/charts/charts'
 import { db } from '@/db/db'
-import type { NutritionEntry, QuickFood } from '@/db/types'
+import type { DailyLog, NutritionEntry, QuickFood, Settings } from '@/db/types'
 import { useMeasurements } from '@/hooks/useData'
 import { useSettings } from '@/hooks/useSettings'
 import { addDays, dayKey, relativeDay, uid } from '@/logic/dates'
-import { effectiveTargets, groupByDay, latestBodyweight, rollingAverage, totalsFor } from '@/logic/nutrition'
+import { creatineStreak, effectiveTargets, formatWater, groupByDay, latestBodyweight, rollingAverage, totalsFor, waterToUnit } from '@/logic/nutrition'
 import { lbToKg } from '@/logic/units'
+
+const EMPTY: never[] = []
 
 export default function NutritionPage() {
   const settings = useSettings()
@@ -21,8 +23,10 @@ export default function NutritionPage() {
   const [day, setDay] = useState(dayKey())
   const [adding, setAdding] = useState<Partial<NutritionEntry> | null>(null)
   const entries = useLiveQuery(() => db.nutritionEntries.where('date').equals(day).sortBy('time'), [day], [] as NutritionEntry[]) ?? []
-  const all = useLiveQuery(() => db.nutritionEntries.toArray(), [], [] as NutritionEntry[]) ?? []
+  const all = useLiveQuery(() => db.nutritionEntries.toArray(), [], EMPTY as NutritionEntry[]) ?? EMPTY
   const foods = useLiveQuery(() => db.quickFoods.orderBy('uses').reverse().limit(12).toArray(), [], [] as QuickFood[]) ?? []
+  const dailyLogs = useLiveQuery(() => db.dailyLog.toArray(), [], EMPTY as DailyLog[]) ?? EMPTY
+  const daily = dailyLogs.find((l) => l.date === day) ?? { date: day, creatine: false, waterMl: 0 }
   const bw = latestBodyweight(measurements)
   const targets = effectiveTargets(settings, bw)
   const t = totalsFor(entries)
@@ -44,6 +48,17 @@ export default function NutritionPage() {
     }
     return { cal, pro }
   }, [all, today])
+  const water = useMemo(() => {
+    const byDay = new Map(dailyLogs.map((l) => [l.date, l]))
+    const labels: string[] = [], values: number[] = []
+    for (let i = 13; i >= 0; i--) {
+      const k = addDays(today, -i)
+      labels.push(k.slice(5).replace('-', '/'))
+      values.push(Math.round(waterToUnit(byDay.get(k)?.waterMl ?? 0, settings.waterUnit) * 100) / 100)
+    }
+    return { labels, values, logged: dailyLogs.filter((l) => l.waterMl > 0).length }
+  }, [dailyLogs, today, settings.waterUnit])
+  const streak = creatineStreak(dailyLogs, today)
 
   const logFood = async (f: QuickFood) => {
     await db.nutritionEntries.add({ id: uid(), date: day, time: Date.now(), label: f.name, calories: f.calories, proteinG: f.proteinG, carbsG: f.carbsG, fatG: f.fatG })
@@ -79,6 +94,8 @@ export default function NutritionPage() {
             <Macro label="Fat" value={t.fatG} target={targets.fatG} />
           </div>
         ) : null}
+
+        <DailyCard daily={daily} streak={streak} settings={settings} />
 
         {foods.length > 0 && (
           <div>
@@ -116,6 +133,10 @@ export default function NutritionPage() {
           <div className="card p-3"><div className="label">30-day avg</div><div className="font-bold num">{Math.round(avg30.calories)} kcal</div><div className="text-sm text-success num">{Math.round(avg30.proteinG)}g protein</div><div className="text-xs text-muted">{avg30.daysLogged} days logged</div></div>
         </div>
 
+        {water.logged > 1 && (
+          <div className="card p-3"><div className="font-bold mb-2">Water · last 14 days</div><BarChart labels={water.labels} values={water.values} target={Math.round(waterToUnit(settings.waterTargetMl, settings.waterUnit))} color={cssVar('--water')} highlightLast={false} height={160} fmt={(v) => `${v} ${settings.waterUnit}`} /></div>
+        )}
+
         {series.cal.length > 1 && (
           <>
             <div className="card p-3"><div className="font-bold mb-2">Calories · last 30 days</div><LineChart series={[{ label: 'kcal', points: series.cal }]} target={targets.calories} height={180} /></div>
@@ -125,6 +146,45 @@ export default function NutritionPage() {
         )}
       </div>
       {adding && <EntrySheet initial={adding} day={day} onClose={() => setAdding(null)} />}
+    </div>
+  )
+}
+
+/** Creatine tick + water tracker for the selected day. */
+function DailyCard({ daily, streak, settings }: { daily: DailyLog; streak: number; settings: Settings }) {
+  const glass = settings.waterGlassMl
+  const target = settings.waterTargetMl
+  const unit = settings.waterUnit
+  const pct = target > 0 ? Math.min(1, daily.waterMl / target) : 0
+  const glasses = Math.max(1, Math.round(target / glass))
+  const filled = Math.min(glasses, Math.floor(daily.waterMl / glass + 1e-6))
+  const save = (patch: Partial<DailyLog>) => db.dailyLog.put({ ...daily, ...patch })
+  const addWater = (ml: number) => {
+    const next = Math.max(0, daily.waterMl + ml)
+    void save({ waterMl: next })
+    if (ml > 0 && daily.waterMl < target && next >= target) toast('Water target hit 💧', 'success')
+  }
+  const step = (n: number) => `+${formatWater(glass * n, unit)}`
+  return (
+    <div className="card divide-y divide-border">
+      <button className="flex items-center gap-3 w-full text-left px-4 py-3" onClick={() => save({ creatine: !daily.creatine })} role="checkbox" aria-checked={daily.creatine} aria-label="Creatine taken">
+        <span className={`h-7 w-7 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${daily.creatine ? 'bg-success border-success text-bg' : 'border-border'}`}>{daily.creatine && <Check size={18} strokeWidth={3} />}</span>
+        <span className="flex-1"><span className="font-bold flex items-center gap-1.5"><Pill size={16} className="text-muted" /> Creatine</span><span className="text-xs text-muted">{streak > 0 ? `${streak}-day streak` : 'Tap when you\'ve taken it'}</span></span>
+      </button>
+      <div className="px-4 py-3">
+        <div className="flex items-center gap-1.5 font-bold"><Droplets size={16} className="text-water" /> Water <span className="ml-auto num font-semibold text-sm">{formatWater(daily.waterMl, unit)} <span className="text-muted font-normal">/ {formatWater(target, unit)}</span></span></div>
+        <div className="mt-2 h-2.5 rounded-full bg-surface-2 overflow-hidden"><div className="h-full rounded-full bg-water transition-[width] duration-300" style={{ width: `${pct * 100}%` }} /></div>
+        <div className="mt-2 flex items-center gap-1 flex-wrap" aria-hidden>
+          {Array.from({ length: glasses }, (_, i) => <Droplets key={i} size={16} className={i < filled ? 'text-water' : 'text-border'} fill={i < filled ? 'currentColor' : 'none'} />)}
+        </div>
+        <div className="mt-3 flex gap-2">
+          <button className="btn btn-secondary btn-icon" onClick={() => addWater(-glass)} disabled={daily.waterMl <= 0} aria-label="Remove a glass"><Minus size={18} /></button>
+          <button className="btn btn-primary flex-1 px-2 whitespace-nowrap" onClick={() => addWater(glass)}>{step(1)}</button>
+          <button className="btn btn-secondary flex-1 px-2 whitespace-nowrap" onClick={() => addWater(glass * 2)}>{step(2)}</button>
+          <button className="btn btn-secondary flex-1 px-2 whitespace-nowrap" onClick={() => addWater(glass * 4)}>{step(4)}</button>
+        </div>
+        <div className="mt-1.5 text-xs text-muted">Glass size and target are in Settings.</div>
+      </div>
     </div>
   )
 }

@@ -3,7 +3,9 @@ import { db } from '@/db/db'
 import { DEFAULT_SETTINGS, type Settings } from '@/db/types'
 
 export function useSettings(): Settings {
-  return useLiveQuery(() => db.settings.get('settings'), [], DEFAULT_SETTINGS) ?? DEFAULT_SETTINGS
+  const stored = useLiveQuery(() => db.settings.get('settings'), [], DEFAULT_SETTINGS)
+  // Rows saved by older versions lack newer keys; defaults fill the gaps.
+  return stored ? { ...DEFAULT_SETTINGS, ...stored } : DEFAULT_SETTINGS
 }
 
 export async function updateSettings(patch: Partial<Settings>): Promise<void> {

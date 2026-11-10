@@ -1,4 +1,4 @@
-import { ChevronRight, Flame, Play, TrendingUp, Trophy } from 'lucide-react'
+import { ChevronRight, Droplets, Flame, Pill, Play, TrendingUp, Trophy } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -8,7 +8,7 @@ import { useExerciseMap, useMeasurements, usePrograms, useRoutines, useWorkouts 
 import { useSettings } from '@/hooks/useSettings'
 import { db } from '@/db/db'
 import { dayKey, formatDateTime, startOfWeek } from '@/logic/dates'
-import { effectiveTargets, latestBodyweight, totalsFor } from '@/logic/nutrition'
+import { effectiveTargets, formatWater, latestBodyweight, totalsFor } from '@/logic/nutrition'
 import { suggest } from '@/logic/progression'
 import { workoutVolume } from '@/logic/records'
 import { formatVolume, formatWeight } from '@/logic/units'
@@ -26,6 +26,7 @@ export default function HomePage() {
   const activeW = active.use((s) => s.workout)
   const today = dayKey()
   const todayEntries = useLiveQuery(() => db.nutritionEntries.where('date').equals(today).toArray(), [today], [])
+  const todayLog = useLiveQuery(() => db.dailyLog.get(today), [today])
   const totals = totalsFor(todayEntries ?? [])
   const targets = effectiveTargets(settings, latestBodyweight(measurements))
 
@@ -124,6 +125,10 @@ export default function HomePage() {
           <div className="flex-1 grid grid-cols-2 gap-2">
             <div><div className="label">Calories</div><div className="font-bold num">{Math.round(totals.calories)} <span className="text-muted font-normal">/ {targets.calories}</span></div></div>
             <div><div className="label">Protein</div><div className="font-bold num">{Math.round(totals.proteinG)}g <span className="text-muted font-normal">/ {targets.proteinG}g</span></div></div>
+            <div className="col-span-2 flex items-center gap-3 text-xs">
+              <span className="flex items-center gap-1 num"><Droplets size={13} className="text-water" />{formatWater(todayLog?.waterMl ?? 0, settings.waterUnit)} <span className="text-muted">/ {formatWater(settings.waterTargetMl, settings.waterUnit)}</span></span>
+              <span className={`flex items-center gap-1 ${todayLog?.creatine ? 'text-success' : 'text-muted'}`}><Pill size={13} />{todayLog?.creatine ? 'Creatine ✓' : 'Creatine'}</span>
+            </div>
           </div>
           <ChevronRight className="text-muted" />
         </Link>

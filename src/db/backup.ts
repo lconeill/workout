@@ -14,14 +14,15 @@ export interface BackupFile {
   nutritionEntries: unknown[]
   quickFoods: unknown[]
   settings: unknown[]
+  dailyLog?: unknown[]
 }
 
 export async function exportBackup(db: LiftDB = defaultDb): Promise<BackupFile> {
-  const [exercises, routines, programs, workouts, measurements, nutritionEntries, quickFoods, settings] = await Promise.all([
+  const [exercises, routines, programs, workouts, measurements, nutritionEntries, quickFoods, settings, dailyLog] = await Promise.all([
     db.exercises.toArray(), db.routines.toArray(), db.programs.toArray(), db.workouts.toArray(),
-    db.measurements.toArray(), db.nutritionEntries.toArray(), db.quickFoods.toArray(), db.settings.toArray(),
+    db.measurements.toArray(), db.nutritionEntries.toArray(), db.quickFoods.toArray(), db.settings.toArray(), db.dailyLog.toArray(),
   ])
-  return { app: 'lift', version: 1, exportedAt: new Date().toISOString(), exercises, routines, programs, workouts, measurements, nutritionEntries, quickFoods, settings }
+  return { app: 'lift', version: 1, exportedAt: new Date().toISOString(), exercises, routines, programs, workouts, measurements, nutritionEntries, quickFoods, settings, dailyLog }
 }
 
 export function isBackupFile(x: unknown): x is BackupFile {
@@ -30,7 +31,7 @@ export function isBackupFile(x: unknown): x is BackupFile {
 
 /** mode 'replace' wipes everything first; 'merge' upserts by id. */
 export async function importBackup(file: BackupFile, mode: 'merge' | 'replace', db: LiftDB = defaultDb): Promise<void> {
-  const tables = [db.exercises, db.routines, db.programs, db.workouts, db.measurements, db.nutritionEntries, db.quickFoods, db.settings]
+  const tables = [db.exercises, db.routines, db.programs, db.workouts, db.measurements, db.nutritionEntries, db.quickFoods, db.settings, db.dailyLog]
   await db.transaction('rw', tables, async () => {
     if (mode === 'replace') for (const t of tables) await t.clear()
     await db.exercises.bulkPut(file.exercises as never[])
@@ -40,6 +41,7 @@ export async function importBackup(file: BackupFile, mode: 'merge' | 'replace', 
     await db.measurements.bulkPut(file.measurements as never[])
     await db.nutritionEntries.bulkPut(file.nutritionEntries as never[])
     await db.quickFoods.bulkPut((file.quickFoods ?? []) as never[])
+    await db.dailyLog.bulkPut((file.dailyLog ?? []) as never[])
     if (file.settings?.length) await db.settings.bulkPut(file.settings as never[])
   })
 }

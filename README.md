@@ -9,7 +9,7 @@ A personal workout and nutrition tracker. Installable PWA for Android (and anyth
 - **Programs & routines** – Push/Pull/Legs, Upper/Lower, Full Body 3×, 5×5 built in; build your own.
 - **Progress** – per-exercise charts (est. 1RM, top weight, volume), weekly volume, sets-per-muscle, bodyweight trend, all-time bests.
 - **Strength standards** – Beginner → Elite rating per lift at your bodyweight, plus a DOTS score.
-- **Nutrition** – daily calories/protein (carbs/fat optional) vs targets, quick-add favourites, 7/30-day averages, charts. Protein target can be derived from bodyweight.
+- **Nutrition** – daily calories/protein (carbs/fat optional) vs targets, quick-add favourites, 7/30-day averages, charts. Protein target can be derived from bodyweight. Daily creatine tick (with streak) and water tracker (ml or oz, configurable glass size and target).
 - **Dark / light theme, lb or kg, offline.**
 
 ## Develop
