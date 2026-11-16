@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo } from 'react'
 import { db } from '@/db/db'
 import type { Exercise, Workout } from '@/db/types'
+import { isPerSide } from '@/logic/records'
 
 const EMPTY: never[] = []
 
@@ -32,4 +33,13 @@ export function usePrograms() {
 }
 export function useMeasurements() {
   return useLiveQuery(() => db.measurements.orderBy('date').toArray(), [], EMPTY) ?? EMPTY
+}
+
+/** Volume multiplier per exercise id: 2 for per-side exercises, else 1. */
+export function useSides(): (exerciseId: string) => number {
+  const map = useExerciseMap()
+  return useMemo(() => {
+    const per = new Set([...map.values()].filter((e) => isPerSide(e)).map((e) => e.id))
+    return (id: string) => (per.has(id) ? 2 : 1)
+  }, [map])
 }

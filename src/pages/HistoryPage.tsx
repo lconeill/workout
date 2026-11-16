@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { useExerciseMap, useWorkouts } from '@/hooks/useData'
+import { useExerciseMap, useSides, useWorkouts } from '@/hooks/useData'
 import { useSettings } from '@/hooks/useSettings'
 import { dayKey, formatDuration } from '@/logic/dates'
 import { workoutSetCount, workoutVolume } from '@/logic/records'
@@ -12,6 +12,7 @@ import { formatVolume } from '@/logic/units'
 export default function HistoryPage() {
   const workouts = useWorkouts()
   const exMap = useExerciseMap()
+  const sides = useSides()
   const { units } = useSettings()
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [sel, setSel] = useState<string | null>(null)
@@ -53,7 +54,7 @@ export default function HistoryPage() {
                 <Link key={w.id} to={`/history/${w.id}`} className="block px-4 py-3">
                   <div className="flex items-center justify-between"><span className="font-semibold">{w.name}</span><span className="text-xs text-muted">{new Date(w.startedAt).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}</span></div>
                   <div className="text-xs text-muted mt-0.5 truncate">{w.exercises.map((e) => exMap.get(e.exerciseId)?.name).filter(Boolean).join(', ')}</div>
-                  <div className="flex gap-3 text-xs text-text-2 mt-1 num"><span>{formatDuration((w.endedAt ?? w.startedAt) - w.startedAt)}</span><span>{workoutSetCount(w)} sets</span><span>{formatVolume(workoutVolume(w), units)} {units}</span>{prs > 0 && <span className="text-pr inline-flex items-center gap-1"><Trophy size={12} /> {prs}</span>}</div>
+                  <div className="flex gap-3 text-xs text-text-2 mt-1 num"><span>{formatDuration((w.endedAt ?? w.startedAt) - w.startedAt)}</span><span>{workoutSetCount(w)} sets</span><span>{formatVolume(workoutVolume(w, sides), units)} {units}</span>{prs > 0 && <span className="text-pr inline-flex items-center gap-1"><Trophy size={12} /> {prs}</span>}</div>
                 </Link>
               )
             })}

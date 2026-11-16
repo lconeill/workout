@@ -1,11 +1,11 @@
-import { ChevronRight, Droplets, Flame, Pill, Play, TrendingUp, Trophy } from 'lucide-react'
+import { ChevronRight, Droplets, Flame, Pill, Play, TrendingUp, Trophy, HardDriveDownload } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Ring } from '@/components/ui/Ring'
-import { useExerciseMap, useMeasurements, usePrograms, useRoutines, useWorkouts } from '@/hooks/useData'
-import { useSettings } from '@/hooks/useSettings'
+import { useExerciseMap, useMeasurements, usePrograms, useRoutines, useSides, useWorkouts } from '@/hooks/useData'
+import { updateSettings, useSettings } from '@/hooks/useSettings'
 import { db } from '@/db/db'
 import { dayKey, formatDateTime, startOfWeek } from '@/logic/dates'
 import { effectiveTargets, formatWater, latestBodyweight, totalsFor } from '@/logic/nutrition'
@@ -13,6 +13,8 @@ import { suggest } from '@/logic/progression'
 import { workoutVolume } from '@/logic/records'
 import { formatVolume, formatWeight } from '@/logic/units'
 import { cableFor, formatSetup } from '@/logic/cableStack'
+import { backupDue, backupNow } from '@/db/backupFlow'
+import { toast } from '@/components/ui/Toast'
 import { active, progressionOpts, startWorkout } from '@/store/activeWorkout'
 import { Stat } from './WorkoutPage'
 
@@ -20,6 +22,7 @@ export default function HomePage() {
   const settings = useSettings()
   const workouts = useWorkouts()
   const exMap = useExerciseMap()
+  const sides = useSides()
   const routines = useRoutines()
   const programs = usePrograms()
   const measurements = useMeasurements()
@@ -41,12 +44,14 @@ export default function HomePage() {
     return null
   })()
   const trainedToday = workouts.some((w) => dayKey(w.startedAt) === today)
+  const firstWorkoutAt = workouts.length ? Math.min(...workouts.map((w) => w.startedAt)) : undefined
+  const backupDays = backupDue(Date.now(), firstWorkoutAt, settings.lastBackupAt, settings.backupSnoozeUntil)
 
   const week = useMemo(() => {
     const start = startOfWeek().getTime()
     const list = workouts.filter((w) => w.startedAt >= start)
-    return { count: list.length, volume: list.reduce((a, w) => a + workoutVolume(w), 0) }
-  }, [workouts])
+    return { count: list.length, volume: list.reduce((a, w) => a + workoutVolume(w, sides), 0) }
+  }, [workouts, sides])
 
   const streak = useMemo(() => {
     // consecutive weeks (incl. this one) with ≥1 workout
@@ -118,6 +123,22 @@ export default function HomePage() {
           </div>
         )}
 
+        {backupDays != null && (
+          <div className="card p-4 border-warning/50">
+            <div className="flex items-start gap-3">
+              <HardDriveDownload size={20} className="text-warning shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="font-bold">Back up your training</div>
+                <div className="text-sm text-muted">{settings.lastBackupAt ? `Last backup ${backupDays} days ago.` : 'Never backed up.'} Your data lives only on this phone.</div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button className="btn btn-secondary flex-1" onClick={() => updateSettings({ backupSnoozeUntil: Date.now() + 3 * 86400000 })}>Later</button>
+              <button className="btn btn-primary flex-1" onClick={async () => { const r = await backupNow(); if (r !== 'cancelled') toast(r === 'shared' ? 'Backup shared' : 'Backup saved to Downloads', 'success') }}>Back up now</button>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-3 gap-2">
           <Stat label="This week" value={String(week.count)} sub={week.count === 1 ? 'workout' : 'workouts'} />
           <Stat label="Volume" value={formatVolume(week.volume, settings.units)} sub={settings.units} />
@@ -166,7 +187,7 @@ export default function HomePage() {
               {workouts.slice(0, 3).map((w) => (
                 <li key={w.id}><Link to={`/history/${w.id}`} className="flex items-center px-4 py-2.5 gap-3">
                   <div className="flex-1 min-w-0"><div className="font-medium truncate">{w.name}</div><div className="text-xs text-muted">{formatDateTime(w.startedAt)}</div></div>
-                  <div className="text-sm num text-text-2">{formatVolume(workoutVolume(w), settings.units)} {settings.units}</div><ChevronRight size={16} className="text-muted" />
+                  <div className="text-sm num text-text-2">{formatVolume(workoutVolume(w, sides), settings.units)} {settings.units}</div><ChevronRight size={16} className="text-muted" />
                 </Link></li>
               ))}
             </ul>

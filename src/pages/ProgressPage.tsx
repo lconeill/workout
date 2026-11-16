@@ -9,7 +9,7 @@ import { Segmented } from '@/components/ui/Segmented'
 import { BarChart, LineChart } from '@/components/charts/charts'
 import { db } from '@/db/db'
 import { MUSCLE_LABELS, type Muscle, type StandardKey } from '@/db/types'
-import { useExerciseMap, useExercises, useMeasurements, useWorkouts } from '@/hooks/useData'
+import { useExerciseMap, useExercises, useMeasurements, useSides, useWorkouts } from '@/hooks/useData'
 import { useSettings } from '@/hooks/useSettings'
 import { dayKey, startOfWeek, uid } from '@/logic/dates'
 import { latestBodyweight } from '@/logic/nutrition'
@@ -24,6 +24,7 @@ export default function ProgressPage() {
   const settings = useSettings()
   const workouts = useWorkouts()
   const exMap = useExerciseMap()
+  const sides = useSides()
   const exercises = useExercises()
   const measurements = useMeasurements()
   const [range, setRange] = useState<'8' | '16' | '52'>('8')
@@ -39,7 +40,7 @@ export default function ProgressPage() {
       const ws = start + i * 7 * 86400000, we = ws + 7 * 86400000
       labels.push(new Date(ws).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))
       const list = workouts.filter((w) => w.startedAt >= ws && w.startedAt < we)
-      vol.push(list.reduce((a, w) => a + workoutVolume(w), 0))
+      vol.push(list.reduce((a, w) => a + workoutVolume(w, sides), 0))
       count.push(list.length)
       for (const w of list) for (const e of w.exercises) {
         const ex = exMap.get(e.exerciseId); if (!ex) continue
@@ -49,7 +50,7 @@ export default function ProgressPage() {
       }
     }
     return { labels, vol, count, perMuscle }
-  }, [workouts, exMap, weeks])
+  }, [workouts, exMap, weeks, sides])
 
   const thisWeekMuscles = useMemo(() => {
     const out = [...weekly.perMuscle.entries()].map(([m, arr]) => ({ m, sets: arr[arr.length - 1], avg: arr.reduce((a, b) => a + b, 0) / Math.max(1, arr.filter((x) => x > 0).length) }))

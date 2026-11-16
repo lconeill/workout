@@ -1,5 +1,5 @@
-import { Download, Upload } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { Download, ShieldCheck, Upload } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Row } from '@/components/ui/Row'
 import { Segmented } from '@/components/ui/Segmented'
@@ -7,7 +7,8 @@ import { NumberField } from '@/components/ui/NumberField'
 import { confirmDialog } from '@/components/ui/Confirm'
 import { toast } from '@/components/ui/Toast'
 import { db } from '@/db/db'
-import { exportBackup, importBackup, isBackupFile, workoutsToCsv } from '@/db/backup'
+import { importBackup, isBackupFile, workoutsToCsv } from '@/db/backup'
+import { backupNow, requestPersistentStorage } from '@/db/backupFlow'
 import { ensureSeeded } from '@/db/seed'
 import { updateSettings, useSettings } from '@/hooks/useSettings'
 import { useExerciseMap } from '@/hooks/useData'
@@ -28,6 +29,9 @@ export default function SettingsPage() {
   const exMap = useExerciseMap()
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const [persisted, setPersisted] = useState<boolean | null>(null)
+  useEffect(() => { void navigator.storage?.persisted?.().then(setPersisted).catch(() => setPersisted(null)) }, [])
+  const lastBackup = s.lastBackupAt ? `Last backup ${new Date(s.lastBackupAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : 'Never backed up'
   const u = s.units
   const plates = s.platesLb.map((p) => formatWeight(p, u)).join(', ')
 
@@ -102,7 +106,8 @@ export default function SettingsPage() {
         </Section>
 
         <Section title="Backup">
-          <Row icon={<Download />} title="Export backup (JSON)" subtitle="Everything: workouts, routines, nutrition, settings" onClick={async () => { download(`lift-backup-${dayKey()}.json`, JSON.stringify(await exportBackup(), null, 1)); toast('Backup exported', 'success') }} chevron />
+          <Row icon={<Download />} title="Back up now (JSON)" subtitle={lastBackup} onClick={async () => { const r = await backupNow(); if (r !== 'cancelled') toast(r === 'shared' ? 'Backup shared' : 'Backup saved to Downloads', 'success') }} chevron />
+          <Row icon={<ShieldCheck />} title="Protected storage" subtitle={persisted ? 'On · data won\u2019t be auto-cleared' : persisted === false ? 'Off · tap to ask the browser again' : 'Not supported here'} onClick={async () => { const r = await requestPersistentStorage(); setPersisted(r); toast(r ? 'Storage protected' : 'Browser declined; keep regular backups', r ? 'success' : undefined) }} />
           <Row icon={<Download />} title="Export workouts (CSV)" subtitle="One row per set, for spreadsheets" onClick={async () => { const ws = await db.workouts.toArray(); download(`lift-workouts-${dayKey()}.csv`, workoutsToCsv(ws.filter((w) => w.endedAt), new Map([...exMap].map(([k, v]) => [k, v.name]))), 'text/csv') }} chevron />
           <Row icon={<Upload />} title={busy ? 'Importing…' : 'Import backup'} subtitle="Restore or merge a JSON backup" onClick={() => fileRef.current?.click()} chevron />
           <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImport(f) }} />

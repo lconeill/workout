@@ -29,6 +29,8 @@ export interface Exercise {
   standardKey?: StandardKey
   /** Log as cable-stack pin + add-ons. Undefined = on for Cable equipment. */
   cableStack?: boolean
+  /** One arm/leg at a time: reps are per side, volume counts both sides. Undefined = built-in default. */
+  perSide?: boolean
   notes?: string
   isCustom: boolean
   archived: boolean
@@ -159,6 +161,10 @@ export interface Settings {
   waterGlassMl: number
   waterUnit: WaterUnit
   cableStack: CableStackConfig
+  /** When the last full backup was saved (ms). */
+  lastBackupAt?: number
+  /** Hide the backup reminder until this time (ms). */
+  backupSnoozeUntil?: number
   seedVersion: number
 }
 

@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Exercise, Settings, Workout, WorkoutExercise } from '@/db/types'
 import type { Suggestion } from '@/logic/progression'
-import { computeRecords, detectSetPrs } from '@/logic/records'
+import { computeRecords, detectSetPrs, isPerSide } from '@/logic/records'
 import { sessionsFor } from '@/logic/progression'
 import { formatWeight } from '@/logic/units'
 import { addSet, moveExercise, removeExercise, removeSet, updateExercise, updateSet } from '@/store/activeWorkout'
@@ -90,6 +90,7 @@ export function ExerciseCard({ we, exercise, suggestion, history, settings, inde
           <Link to={`/exercises/${exercise.id}`} className="font-bold text-[17px] truncate block text-accent">{exercise.name}</Link>
           <div className="text-xs text-muted flex items-center gap-2">
             <span className="inline-flex items-center gap-1"><Clock size={12} /> {we.restSec}s rest</span>
+            {isPerSide(exercise) && <span className="chip h-5 px-2 text-[10px]">Per side</span>}
             {we.supersetGroup && <span className="chip h-5 px-2 text-[10px]">Superset {we.supersetGroup}</span>}
           </div>
         </div>
@@ -113,7 +114,7 @@ export function ExerciseCard({ we, exercise, suggestion, history, settings, inde
       <div className="grid px-3 text-[11px] font-semibold text-muted uppercase tracking-wide gap-2 mt-1" style={{ gridTemplateColumns: '36px 1fr 72px 64px 44px' }}>
         <div className="text-center">Set</div><div>Previous</div>
         <div className="text-center">{exercise.kind === 'reps_only' || exercise.kind === 'duration' ? '' : cable ? 'setup' : units}</div>
-        <div className="text-center">{exercise.kind === 'duration' ? 'sec' : 'reps'}</div><div className="text-center"><Check size={14} className="inline" /></div>
+        <div className="text-center">{exercise.kind === 'duration' ? 'sec' : isPerSide(exercise) ? 'reps/side' : 'reps'}</div><div className="text-center"><Check size={14} className="inline" /></div>
       </div>
       <div className="px-1 pb-1 space-y-0.5">
         {we.sets.map((s, i) => (

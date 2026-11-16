@@ -8,7 +8,7 @@ import { NumberField } from '@/components/ui/NumberField'
 import { confirmDialog } from '@/components/ui/Confirm'
 import { db } from '@/db/db'
 import type { Workout, WorkoutSet } from '@/db/types'
-import { useExerciseMap } from '@/hooks/useData'
+import { useExerciseMap, useSides } from '@/hooks/useData'
 import { useSettings } from '@/hooks/useSettings'
 import { formatDateTime, formatDuration } from '@/logic/dates'
 import { isCountedSet, workoutSetCount, workoutVolume } from '@/logic/records'
@@ -21,6 +21,7 @@ export default function WorkoutDetailPage() {
   const w = useLiveQuery(() => db.workouts.get(id!), [id])
   const exMap = useExerciseMap()
   const { units, cableStack } = useSettings()
+  const sides = useSides()
   const nav = useNavigate()
   const [editing, setEditing] = useState(false)
   if (!w) return <div className="p-8 text-center text-muted">Loading…</div>
@@ -35,7 +36,7 @@ export default function WorkoutDetailPage() {
       <div className="px-4 space-y-4">
         <div className="grid grid-cols-3 gap-2">
           <Stat label="Duration" value={formatDuration((w.endedAt ?? w.startedAt) - w.startedAt)} />
-          <Stat label="Volume" value={`${formatVolume(workoutVolume(w), units)}`} sub={units} />
+          <Stat label="Volume" value={`${formatVolume(workoutVolume(w, sides), units)}`} sub={units} />
           <Stat label="Sets" value={String(workoutSetCount(w))} sub={prs ? `${prs} PR${prs > 1 ? 's' : ''}` : undefined} accent={prs > 0} />
         </div>
         {w.exercises.map((e) => {

@@ -5,8 +5,10 @@ import './index.css'
 import App from './App.tsx'
 import { ensureSeeded } from './db/seed'
 import { applyTheme } from './hooks/useSettings'
+import { requestPersistentStorage } from './db/backupFlow'
 
 registerSW({ immediate: true })
+void requestPersistentStorage()
 
 ensureSeeded().then((s) => {
   applyTheme(s.theme)

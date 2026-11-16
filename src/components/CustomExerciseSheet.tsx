@@ -6,6 +6,7 @@ import { Sheet } from './ui/Sheet'
 import { NumberField } from './ui/NumberField'
 import { useSettings } from '@/hooks/useSettings'
 import { fromLb, toLb } from '@/logic/units'
+import { isPerSide } from '@/logic/records'
 
 const KINDS: { value: ExerciseKind; label: string }[] = [
   { value: 'weight_reps', label: 'Weight × reps' }, { value: 'reps_only', label: 'Reps only' },
@@ -28,12 +29,15 @@ export function CustomExerciseSheet({ open, onClose, onCreated, initialName = ''
   /** null = follow equipment (on for Cable). */
   const [cable, setCable] = useState<boolean | null>(null)
   const cableOn = cable ?? equipment === 'cable'
+  /** null = built-in default for this exercise. */
+  const [side, setSide] = useState<boolean | null>(null)
+  const sideOn = side ?? isPerSide({ id: edit?.id ?? '', name, perSide: undefined })
   useEffect(() => {
     if (!open) return
     if (edit) {
       setName(edit.name); setMuscle(edit.primaryMuscle); setEquipment(edit.equipment); setKind(edit.kind); setRule(edit.progressionRule)
-      setInc(fromLb(edit.incrementLb, units)); setMin(edit.repRange.min); setMax(edit.repRange.max); setCable(edit.cableStack ?? null)
-    } else { setName(initialName); setInc(units === 'kg' ? 2.5 : 5); setCable(null) }
+      setInc(fromLb(edit.incrementLb, units)); setMin(edit.repRange.min); setMax(edit.repRange.max); setCable(edit.cableStack ?? null); setSide(edit.perSide ?? null)
+    } else { setName(initialName); setInc(units === 'kg' ? 2.5 : 5); setCable(null); setSide(null) }
   }, [open, edit, initialName, units])
   const save = async () => {
     if (!name.trim()) return
@@ -44,6 +48,8 @@ export function CustomExerciseSheet({ open, onClose, onCreated, initialName = ''
       cableStack: kind === 'weight_reps' && cable != null && cable !== (equipment === 'cable') ? cable : undefined,
     }
     if (ex.cableStack === undefined) delete ex.cableStack
+    const sideDefault = isPerSide({ id: ex.id, name: ex.name, perSide: undefined })
+    if (side != null && side !== sideDefault) ex.perSide = side; else delete ex.perSide
     await db.exercises.put(ex)
     onCreated?.(ex)
     onClose()
@@ -62,19 +68,24 @@ export function CustomExerciseSheet({ open, onClose, onCreated, initialName = ''
           <select className="field mt-1" value={kind} onChange={(e) => setKind(e.target.value as ExerciseKind)}>{KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}</select></label>
         <label className="block"><span className="label">Progression</span>
           <select className="field mt-1" value={rule} onChange={(e) => setRule(e.target.value as ProgressionRule)}>{RULES.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}</select></label>
-        {kind === 'weight_reps' && (
-          <button type="button" className="flex items-center gap-3 w-full text-left" onClick={() => setCable(!cableOn)} role="switch" aria-checked={cableOn}>
-            <div className="flex-1"><div className="font-medium">Cable stack</div><div className="text-xs text-muted">Log as pin + add-on plates (set up in Settings)</div></div>
-            <span className={`relative h-7 w-12 rounded-full transition-colors ${cableOn ? 'bg-accent' : 'bg-surface-3'}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${cableOn ? 'translate-x-6' : 'translate-x-1'}`} /></span>
-          </button>
-        )}
+        {kind === 'weight_reps' && <Switch title="Cable stack" sub="Log as pin + add-on plates (set up in Settings)" on={cableOn} onChange={setCable} />}
+        <Switch title="Per side" sub="One arm or leg at a time: log reps for one side, volume counts both" on={sideOn} onChange={setSide} />
         <div className="grid grid-cols-3 gap-3">
-          <label className="block"><span className="label">Increment ({units})</span><NumberField className="mt-1" value={inc} onChange={setInc} disabled={kind === 'weight_reps' && cableOn} placeholder={kind === 'weight_reps' && cableOn ? 'stack' : undefined} /></label>
+          <label className="block"><span className="label">Increment ({units})</span><NumberField className="mt-1" value={kind === 'weight_reps' && cableOn ? null : inc} onChange={setInc} disabled={kind === 'weight_reps' && cableOn} placeholder={kind === 'weight_reps' && cableOn ? 'stack' : undefined} /></label>
           <label className="block"><span className="label">Min reps</span><NumberField className="mt-1" value={min} onChange={setMin} integer /></label>
           <label className="block"><span className="label">Max reps</span><NumberField className="mt-1" value={max} onChange={setMax} integer /></label>
         </div>
         <button className="btn btn-primary w-full" onClick={save} disabled={!name.trim()}>{edit ? 'Save' : 'Create'}</button>
       </div>
     </Sheet>
+  )
+}
+
+function Switch({ title, sub, on, onChange }: { title: string; sub: string; on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button type="button" className="flex items-center gap-3 w-full text-left" onClick={() => onChange(!on)} role="switch" aria-checked={on}>
+      <div className="flex-1"><div className="font-medium">{title}</div><div className="text-xs text-muted">{sub}</div></div>
+      <span className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${on ? 'bg-accent' : 'bg-surface-3'}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${on ? 'translate-x-6' : 'translate-x-1'}`} /></span>
+    </button>
   )
 }

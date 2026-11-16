@@ -13,7 +13,7 @@ import { useSettings } from '@/hooks/useSettings'
 import { formatDateTime } from '@/logic/dates'
 import { latestBodyweight } from '@/logic/nutrition'
 import { suggest } from '@/logic/progression'
-import { computeRecords, isCountedSet, sessionSeries } from '@/logic/records'
+import { computeRecords, isCountedSet, isPerSide, sessionSeries } from '@/logic/records'
 import { rateLift } from '@/logic/standards'
 import { formatVolume, formatWeight, fromLb } from '@/logic/units'
 import { progressionOpts } from '@/store/activeWorkout'
@@ -103,7 +103,7 @@ export default function ExerciseDetailPage() {
             )
           }) : <p className="px-4 pb-3 text-sm text-muted">Never logged.</p>}
         </div>
-        <div className="text-xs text-muted px-1">Progression: {ex.progressionRule} · {cable ? 'cable stack, next setup up' : `+${formatWeight(ex.incrementLb, units)} ${units}`} · {ex.repRange.min}–{ex.repRange.max} reps</div>
+        <div className="text-xs text-muted px-1">Progression: {ex.progressionRule} · {cable ? 'cable stack, next setup up' : `+${formatWeight(ex.incrementLb, units)} ${units}`} · {ex.repRange.min}–{ex.repRange.max} reps{isPerSide(ex) ? ' per side' : ''}</div>
       </div>
       <CustomExerciseSheet open={edit} onClose={() => setEdit(false)} edit={ex} />
     </div>

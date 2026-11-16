@@ -1,4 +1,16 @@
-import type { PrKind, Workout, WorkoutSet } from '@/db/types'
+import type { Exercise, PrKind, Workout, WorkoutSet } from '@/db/types'
+
+/** Built-ins normally done one side at a time. */
+const PER_SIDE_DEFAULT = new Set(['cable_lateral_raise', 'cable_kickback', 'concentration_curl', 'bulgarian_split_squat'])
+
+/** Is this exercise logged per side? Explicit flag wins, then built-in list, then the name. */
+export function isPerSide(ex: Pick<Exercise, 'id' | 'name' | 'perSide'> | undefined): boolean {
+  if (!ex) return false
+  return ex.perSide ?? (PER_SIDE_DEFAULT.has(ex.id) || /\b(single|one)[- ](arm|leg)\b|\bunilateral\b/i.test(ex.name))
+}
+
+/** Multiplier per exerciseId for volume (2 for per-side exercises). */
+export type SidesFn = (exerciseId: string) => number
 
 /** Epley estimated 1RM. Reps capped to keep the formula sane. */
 export function e1rm(weightLb: number, reps: number): number {
@@ -24,8 +36,9 @@ export function setVolume(s: WorkoutSet): number {
   return (s.weightLb ?? 0) * (s.reps ?? 0)
 }
 
-export function workoutVolume(w: Workout): number {
-  return w.exercises.reduce((acc, ex) => acc + ex.sets.reduce((a, s) => a + setVolume(s), 0), 0)
+/** Total lb moved. Per-side exercises count both sides when `sides` is given. */
+export function workoutVolume(w: Workout, sides?: SidesFn): number {
+  return w.exercises.reduce((acc, ex) => acc + (sides?.(ex.exerciseId) ?? 1) * ex.sets.reduce((a, s) => a + setVolume(s), 0), 0)
 }
 
 export function workoutSetCount(w: Workout): number {
