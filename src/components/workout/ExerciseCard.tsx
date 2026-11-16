@@ -10,6 +10,8 @@ import { addSet, moveExercise, removeExercise, removeSet, updateExercise, update
 import { buzz, startRest } from '@/store/restTimer'
 import { SetRow } from './SetRow'
 import { PlateCalcSheet } from './PlateCalcSheet'
+import { CableSetupSheet } from './CableSetupSheet'
+import { formatSetup, usesCableStack } from '@/logic/cableStack'
 import { Sheet } from '../ui/Sheet'
 import { toast } from '../ui/Toast'
 import { confirmDialog } from '../ui/Confirm'
@@ -35,7 +37,18 @@ export function ExerciseCard({ we, exercise, suggestion, history, settings, inde
     const s = sessionsFor(history, exercise.id)
     return s.length ? s[s.length - 1].sets : []
   }, [history, exercise.id])
-  const fw = (lb: number) => formatWeight(lb, units, true)
+  const [cableSet, setCableSet] = useState<string | null>(null) // set id
+  const cable = exercise.kind === 'weight_reps' && usesCableStack(exercise) ? settings.cableStack : null
+  /** "47 lb", or "P3+5 (47 lb)" on the cable stack. */
+  const fw = (lb: number) => {
+    const s = cable && formatSetup(lb, cable)
+    return s ? `${s} (${formatWeight(lb, units, true)})` : formatWeight(lb, units, true)
+  }
+  const applyCable = (setId: string, lb: number, all: boolean) => {
+    if (!all) { updateSet(we.id, setId, { weightLb: lb }); return }
+    const from = we.sets.findIndex((s) => s.id === setId)
+    updateExercise(we.id, (e) => ({ ...e, sets: e.sets.map((s, i) => (i >= from && !s.done && s.type !== 'warmup') || s.id === setId ? { ...s, weightLb: lb } : s) }))
+  }
 
   const applySuggestion = () => {
     if (!suggestion) return
@@ -99,7 +112,7 @@ export function ExerciseCard({ we, exercise, suggestion, history, settings, inde
 
       <div className="grid px-3 text-[11px] font-semibold text-muted uppercase tracking-wide gap-2 mt-1" style={{ gridTemplateColumns: '36px 1fr 72px 64px 44px' }}>
         <div className="text-center">Set</div><div>Previous</div>
-        <div className="text-center">{exercise.kind === 'reps_only' || exercise.kind === 'duration' ? '' : units}</div>
+        <div className="text-center">{exercise.kind === 'reps_only' || exercise.kind === 'duration' ? '' : cable ? 'setup' : units}</div>
         <div className="text-center">{exercise.kind === 'duration' ? 'sec' : 'reps'}</div><div className="text-center"><Check size={14} className="inline" /></div>
       </div>
       <div className="px-1 pb-1 space-y-0.5">
@@ -107,7 +120,7 @@ export function ExerciseCard({ we, exercise, suggestion, history, settings, inde
           <SetRow key={s.id} index={workingIdx[i]} set={s} kind={exercise.kind} units={units}
             prev={s.type === 'warmup' ? null : lastWorking[workingIdx[i] - 1] ?? null}
             onChange={(p) => updateSet(we.id, s.id, p)} onToggleDone={() => toggleDone(s.id)} onRemove={() => removeSet(we.id, s.id)}
-            onPlates={() => setPlates(s.id)} />
+            onPlates={() => setPlates(s.id)} cable={cable} onCable={() => setCableSet(s.id)} />
         ))}
       </div>
       <button className="btn btn-ghost w-full rounded-none border-t border-border text-accent" onClick={() => addSet(we.id)}><Plus size={18} /> Add set</button>
@@ -134,6 +147,13 @@ export function ExerciseCard({ we, exercise, suggestion, history, settings, inde
           ))}
         </div>
       </Sheet>
+      {cable && cableSet && (() => {
+        const i = we.sets.findIndex((s) => s.id === cableSet)
+        const s = we.sets[i]
+        const prev = s && s.type !== 'warmup' ? lastWorking[workingIdx[i] - 1] : undefined
+        return <CableSetupSheet open onClose={() => setCableSet(null)} cfg={cable} units={units}
+          weightLb={s?.weightLb ?? prev?.weightLb ?? suggestion?.weightLb ?? null} onApply={(lb, all) => applyCable(cableSet, lb, all)} />
+      })()}
       {plates && <PlateCalcSheet open onClose={() => setPlates(null)} weightLb={we.sets.find((s) => s.id === plates)?.weightLb ?? null} onApply={(lb) => updateSet(we.id, plates, { weightLb: lb })} />}
     </section>
   )

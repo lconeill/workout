@@ -1,6 +1,7 @@
 import type { Exercise, ProgressionRule, Workout, WorkoutExercise, WorkoutSet } from '@/db/types'
 import { isCountedSet } from './records'
 import { roundTo } from './units'
+import { nextRung, rungAtOrBelow } from './cableStack'
 
 export type SuggestionKind = 'first' | 'increase' | 'hold' | 'deload' | 'reps'
 
@@ -20,6 +21,8 @@ export interface ProgressionOptions {
   incrementLb?: number
   failuresBeforeDeload?: number
   deloadPct?: number
+  /** Achievable weights (ascending), e.g. a cable stack. Increases go up one rung; deloads snap down onto it. */
+  ladder?: number[]
 }
 
 interface Session { t: number; sets: WorkoutSet[] }
@@ -67,6 +70,12 @@ export function suggest(exercise: Exercise, workouts: Workout[], opts: Progressi
   const inc = opts.incrementLb ?? exercise.incrementLb
   const failuresBeforeDeload = opts.failuresBeforeDeload ?? 2
   const deloadPct = opts.deloadPct ?? 10
+  const ladder = opts.ladder?.length ? opts.ladder : undefined
+  /** Next weight up, and how much that adds. */
+  const up = (w: number) => {
+    const next = ladder ? nextRung(w, ladder) : w + inc
+    return { next, add: Math.round((next - w) * 100) / 100 }
+  }
 
   const sessions = sessionsFor(workouts, exercise.id)
   if (!sessions.length) {
@@ -101,7 +110,8 @@ export function suggest(exercise: Exercise, workouts: Workout[], opts: Progressi
       return { ...base, kind: 'hold', weightLb: W, reps: Math.max(1, range.min - 2), reason: `Missed the rep target ${failures} sessions in a row — drop a couple of reps per set and rebuild.` }
     }
     const step = inc > 0 ? inc : 2.5
-    const deloaded = Math.max(0, roundTo(W * (1 - deloadPct / 100), step))
+    const target = W * (1 - deloadPct / 100)
+    const deloaded = ladder ? rungAtOrBelow(target, ladder) : Math.max(0, roundTo(target, step))
     return { ...base, kind: 'deload', weightLb: deloaded, reps: range.min, reason: `Missed ${range.min} reps on ${failures} sessions in a row — deload ${deloadPct}% and rebuild.` }
   }
 
@@ -119,14 +129,16 @@ export function suggest(exercise: Exercise, workouts: Workout[], opts: Progressi
     if (failures > 0) {
       return { ...base, kind: 'hold', weightLb: W, reps: range.min, reason: `Missed reps last time — repeat ${W} lb.` }
     }
-    return { ...base, kind: 'increase', weightLb: W + inc, reps: range.min, reason: `Completed all sets — add ${inc} lb.` }
+    const { next, add } = up(W)
+    return { ...base, kind: 'increase', weightLb: next, reps: range.min, reason: `Completed all sets — add ${add} lb.` }
   }
 
   // double progression
   const allTop = working.every((s) => (s.reps ?? 0) >= range.max)
   const rpeOk = working.every((s) => s.rpe == null || s.rpe <= 9)
   if (allTop && rpeOk) {
-    return { ...base, kind: 'increase', weightLb: W + inc, reps: range.min, reason: `Hit ${range.max} reps on every set — add ${inc} lb and start again at ${range.min}.` }
+    const { next, add } = up(W)
+    return { ...base, kind: 'increase', weightLb: next, reps: range.min, reason: `Hit ${range.max} reps on every set — add ${add} lb and start again at ${range.min}.` }
   }
   if (failures > 0) {
     return { ...base, kind: 'hold', weightLb: W, reps: range.min, reason: `Below ${range.min} reps on a set — hold ${W} lb and chase ${range.min}+ on every set.` }

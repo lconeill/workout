@@ -6,6 +6,7 @@ import { suggest, type Suggestion } from '@/logic/progression'
 import { computeRecords, detectSetPrs, isCountedSet } from '@/logic/records'
 import { warmupRamp } from '@/logic/plates'
 import { roundTo } from '@/logic/units'
+import { cableLadder, nearestRung, usesCableStack } from '@/logic/cableStack'
 import { createStore } from './tiny'
 import { stopRest } from './restTimer'
 
@@ -18,6 +19,7 @@ export function progressionOpts(settings: Settings, exercise: Exercise) {
     rule: linear ? ('linear' as const) : undefined,
     failuresBeforeDeload: settings.failuresBeforeDeload,
     deloadPct: settings.deloadPct,
+    ladder: usesCableStack(exercise) && settings.cableStack ? cableLadder(settings.cableStack) : undefined,
   }
 }
 
@@ -45,8 +47,11 @@ export function buildExercise(
   const working = suggestion.weightLb ?? 0
   const barLb = exercise.equipment === 'barbell' ? settings.barWeightLb : 0
   const step = Math.max(exercise.incrementLb, settings.units === 'kg' ? 2.5 : 2.5)
+  const ladder = usesCableStack(exercise) && settings.cableStack ? cableLadder(settings.cableStack) : null
+  const snap = (lb: number) => (ladder ? nearestRung(lb, ladder) : roundTo(lb, step))
   const ramp = nWarm && working > 0 && exercise.kind === 'weight_reps'
-    ? warmupRamp(working, barLb, step).filter((r) => r.weightLb > 0).map((r) => ({ ...r, weightLb: roundTo(r.weightLb, step) })).slice(-nWarm)
+    ? warmupRamp(working, barLb, step).filter((r) => r.weightLb > 0).map((r) => ({ ...r, weightLb: snap(r.weightLb) }))
+      .filter((r, i, a) => r.weightLb < working && (i === 0 || a[i - 1].weightLb !== r.weightLb)).slice(-nWarm)
     : []
   let warmIdx = 0
   const sets: WorkoutSet[] = template.map((t, i) => {

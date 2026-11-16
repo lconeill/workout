@@ -17,6 +17,7 @@ import { computeRecords, isCountedSet, sessionSeries } from '@/logic/records'
 import { rateLift } from '@/logic/standards'
 import { formatVolume, formatWeight, fromLb } from '@/logic/units'
 import { progressionOpts } from '@/store/activeWorkout'
+import { cableFor, formatSetup } from '@/logic/cableStack'
 import { LevelBar, levelColor } from '@/components/LevelBar'
 
 type Metric = 'e1rm' | 'weight' | 'volume'
@@ -46,7 +47,11 @@ export default function ExerciseDetailPage() {
 
   const points = series.map((p) => ({ x: new Date(p.t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), y: metric === 'e1rm' ? Math.round(fromLb(p.e1rmLb, units)) : metric === 'weight' ? Math.round(fromLb(p.bestWeightLb, units) * 10) / 10 : Math.round(fromLb(p.volumeLb, units)) }))
   const showWeight = ex.kind === 'weight_reps' || ex.kind === 'weighted_bodyweight'
-  const fw = (lb: number) => formatWeight(lb, units, true)
+  const cable = cableFor(ex, settings.cableStack)
+  const fw = (lb: number) => {
+    const s = cable && formatSetup(lb, cable)
+    return s ? `${s} (${formatWeight(lb, units, true)})` : formatWeight(lb, units, true)
+  }
 
   return (
     <div className="fade-in">
@@ -91,14 +96,14 @@ export default function ExerciseDetailPage() {
                 <div className="flex justify-between text-sm"><span className="font-medium">{w.name}</span><span className="text-muted">{formatDateTime(w.startedAt)}</span></div>
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {we.sets.filter(isCountedSet).map((s) => (
-                    <span key={s.id} className={`chip h-7 px-2 text-xs ${s.pr?.length ? 'chip-active' : ''}`}>{s.pr?.length ? <Trophy size={12} /> : null}{showWeight && (s.weightLb ?? 0) > 0 ? `${formatWeight(s.weightLb, units)}×` : ''}{s.reps}{ex.kind === 'duration' ? 's' : ''}</span>
+                    <span key={s.id} className={`chip h-7 px-2 text-xs ${s.pr?.length ? 'chip-active' : ''}`}>{s.pr?.length ? <Trophy size={12} /> : null}{showWeight && (s.weightLb ?? 0) > 0 ? `${(cable && formatSetup(s.weightLb, cable)) || formatWeight(s.weightLb, units)}×` : ''}{s.reps}{ex.kind === 'duration' ? 's' : ''}</span>
                   ))}
                 </div>
               </Link>
             )
           }) : <p className="px-4 pb-3 text-sm text-muted">Never logged.</p>}
         </div>
-        <div className="text-xs text-muted px-1">Progression: {ex.progressionRule} · +{formatWeight(ex.incrementLb, units)} {units} · {ex.repRange.min}–{ex.repRange.max} reps</div>
+        <div className="text-xs text-muted px-1">Progression: {ex.progressionRule} · {cable ? 'cable stack, next setup up' : `+${formatWeight(ex.incrementLb, units)} ${units}`} · {ex.repRange.min}–{ex.repRange.max} reps</div>
       </div>
       <CustomExerciseSheet open={edit} onClose={() => setEdit(false)} edit={ex} />
     </div>

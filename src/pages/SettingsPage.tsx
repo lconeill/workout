@@ -54,6 +54,17 @@ export default function SettingsPage() {
           <div className="px-4 py-3"><div className="label mb-2">Sex (for strength standards)</div><Segmented value={s.sex} options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} onChange={(v) => updateSettings({ sex: v })} /></div>
         </Section>
 
+        <Section title="Cable stack">
+          {(() => { const c = s.cableStack; const set = (p: Partial<typeof c>) => updateSettings({ cableStack: { ...c, ...p } }); return <>
+            <div className="px-4 py-3 grid grid-cols-3 gap-3">
+              <label><span className="label">Base (lb)</span><NumberField className="mt-1" value={c.baseLb} onChange={(v) => v != null && set({ baseLb: v })} /></label>
+              <label><span className="label">Per pin (lb)</span><NumberField className="mt-1" value={c.pinLb} onChange={(v) => v != null && v > 0 && set({ pinLb: v })} /></label>
+              <label><span className="label">Pins</span><NumberField className="mt-1" value={c.pins} onChange={(v) => v != null && v > 0 && set({ pins: Math.min(40, v) })} integer /></label>
+            </div>
+            <div className="px-4 pb-3"><div className="font-medium">Add-on plates (lb)</div><input className="field mt-1" defaultValue={c.addOnsLb.join(', ')} onBlur={(e) => set({ addOnsLb: e.target.value.split(/[,\s]+/).map(Number).filter((n) => n > 0).sort((a, b) => b - a).slice(0, 8) })} /><div className="text-xs text-muted mt-1">Each plate you own, comma-separated (e.g. 5, 2.5, 2.5). Base = weight with no pin. Total = base + pin × per pin + add-ons. On for Cable exercises; change per exercise via the pencil icon.</div></div>
+          </> })()}
+        </Section>
+
         <Section title="Workout">
           <div className="px-4 py-3 flex items-center gap-3"><div className="flex-1"><div className="font-medium">Default rest</div><div className="text-xs text-muted">For new exercises</div></div><div className="w-24"><NumberField value={s.defaultRestSec} onChange={(v) => v != null && updateSettings({ defaultRestSec: v })} integer /></div><span className="text-muted">sec</span></div>
           <Toggle title="Auto-start rest timer" sub="When you tick a working set" value={s.autoStartRest} onChange={(v) => updateSettings({ autoStartRest: v })} />

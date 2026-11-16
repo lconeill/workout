@@ -1,6 +1,7 @@
 import { Check, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import type { ExerciseKind, SetType, WorkoutSet } from '@/db/types'
+import type { CableStackConfig, ExerciseKind, SetType, WorkoutSet } from '@/db/types'
+import { formatSetup } from '@/logic/cableStack'
 import { NumberField } from '../ui/NumberField'
 import { formatWeight, fromLb, toLb } from '@/logic/units'
 
@@ -17,14 +18,18 @@ interface Props {
   onToggleDone: () => void
   onRemove: () => void
   onPlates?: () => void
+  /** Cable-stack exercise: weight shows as pin + add-ons and opens the setup picker. */
+  cable?: CableStackConfig | null
+  onCable?: () => void
 }
 
-export function SetRow({ index, set, kind, units, prev, onChange, onToggleDone, onRemove, onPlates }: Props) {
+export function SetRow({ index, set, kind, units, prev, onChange, onToggleDone, onRemove, onPlates, cable, onCable }: Props) {
   const [menu, setMenu] = useState(false)
   const showWeight = kind !== 'reps_only' && kind !== 'duration'
   const repsLabel = kind === 'duration' ? 'sec' : 'reps'
+  const wText = (lb: number) => (cable && formatSetup(lb, cable)) || formatWeight(lb, units)
   const prevText = prev && (prev.reps != null)
-    ? (showWeight && prev.weightLb != null && prev.weightLb > 0 ? `${formatWeight(prev.weightLb, units)} × ${prev.reps}` : `${prev.reps}${kind === 'duration' ? 's' : ''}`)
+    ? (showWeight && prev.weightLb != null && prev.weightLb > 0 ? `${wText(prev.weightLb)} × ${prev.reps}` : `${prev.reps}${kind === 'duration' ? 's' : ''}`)
     : '—'
   const applyPrev = () => { if (prev) onChange({ weightLb: prev.weightLb, reps: prev.reps }) }
   const rowClass = set.pr?.length ? 'set-pr' : set.done ? 'set-done' : ''
@@ -33,8 +38,19 @@ export function SetRow({ index, set, kind, units, prev, onChange, onToggleDone, 
       <button className={`h-9 w-9 rounded-lg bg-surface-2 font-bold text-sm num ${TYPE_CLASS[set.type]}`} onClick={() => setMenu((m) => !m)} aria-label="Set options">
         {set.type === 'working' ? index : TYPE_LABEL[set.type]}
       </button>
-      <button className="text-sm text-muted num text-left truncate min-h-[36px]" onClick={applyPrev} disabled={!prev}>{prevText}</button>
-      {showWeight ? (
+      {cable && showWeight && prev?.reps != null && prev.weightLb != null && prev.weightLb > 0 ? (
+        <button className="text-muted num text-left min-h-[36px] leading-tight flex flex-col justify-center min-w-0" onClick={applyPrev}>
+          <span className="text-sm truncate">{wText(prev.weightLb)}</span><span className="text-xs">× {prev.reps}</span>
+        </button>
+      ) : <button className="text-sm text-muted num text-left truncate min-h-[36px]" onClick={applyPrev} disabled={!prev}>{prevText}</button>}
+      {showWeight && cable ? (
+        <button className="field h-9 px-1 flex flex-col items-center justify-center leading-none disabled:opacity-100" onClick={onCable} disabled={set.done} aria-label="Cable setup">
+          {set.weightLb != null && set.weightLb > 0 ? <>
+            <span className="text-sm font-semibold num">{formatSetup(set.weightLb, cable) ?? formatWeight(set.weightLb, units)}</span>
+            <span className="text-[10px] text-muted num mt-0.5">{formatWeight(set.weightLb, units)} {units}</span>
+          </> : <span className="text-sm text-muted num">{prev?.weightLb ? wText(prev.weightLb) : 'Pin'}</span>}
+        </button>
+      ) : showWeight ? (
         <NumberField value={set.weightLb != null ? fromLb(set.weightLb, units) : null} onChange={(v) => onChange({ weightLb: v != null ? toLb(v, units) : null })}
           placeholder={prev?.weightLb != null ? formatWeight(prev.weightLb, units) : '0'} className="h-9" aria-label="Weight" disabled={set.done} onFocus={undefined} />
       ) : <div />}
@@ -50,7 +66,7 @@ export function SetRow({ index, set, kind, units, prev, onChange, onToggleDone, 
               {t === 'working' ? 'Set' : t[0].toUpperCase() + t.slice(1)}
             </button>
           ))}
-          {onPlates && showWeight && <button className="btn btn-sm btn-ghost" onClick={() => { setMenu(false); onPlates() }}>Plates</button>}
+          {onPlates && showWeight && !cable && <button className="btn btn-sm btn-ghost" onClick={() => { setMenu(false); onPlates() }}>Plates</button>}
           <button className="btn btn-sm btn-danger btn-icon" onClick={() => { setMenu(false); onRemove() }} aria-label="Delete set"><Trash2 size={16} /></button>
         </div>
       )}

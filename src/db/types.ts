@@ -27,6 +27,8 @@ export interface Exercise {
   repRange: RepRange
   progressionRule: ProgressionRule
   standardKey?: StandardKey
+  /** Log as cable-stack pin + add-ons. Undefined = on for Cable equipment. */
+  cableStack?: boolean
   notes?: string
   isCustom: boolean
   archived: boolean
@@ -128,6 +130,15 @@ export interface DailyLog {
 }
 export type WaterUnit = 'ml' | 'oz'
 
+/** Pin-loaded cable machine: total = baseLb + pin × pinLb + add-on plates. */
+export interface CableStackConfig {
+  baseLb: number
+  pinLb: number
+  pins: number
+  /** Each physical add-on plate you own, e.g. [2.5, 2.5, 5]. */
+  addOnsLb: number[]
+}
+
 export interface Settings {
   id: 'settings'
   units: 'lb' | 'kg'
@@ -147,6 +158,7 @@ export interface Settings {
   waterTargetMl: number
   waterGlassMl: number
   waterUnit: WaterUnit
+  cableStack: CableStackConfig
   seedVersion: number
 }
 
@@ -167,6 +179,7 @@ export const DEFAULT_SETTINGS: Settings = {
   waterTargetMl: 3000,
   waterGlassMl: 250,
   waterUnit: 'ml',
+  cableStack: { baseLb: 6, pinLb: 12, pins: 12, addOnsLb: [5, 2.5, 2.5] },
   seedVersion: 0,
 }
 

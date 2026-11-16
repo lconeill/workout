@@ -25,12 +25,15 @@ export function CustomExerciseSheet({ open, onClose, onCreated, initialName = ''
   const [inc, setInc] = useState<number | null>(5)
   const [min, setMin] = useState<number | null>(8)
   const [max, setMax] = useState<number | null>(12)
+  /** null = follow equipment (on for Cable). */
+  const [cable, setCable] = useState<boolean | null>(null)
+  const cableOn = cable ?? equipment === 'cable'
   useEffect(() => {
     if (!open) return
     if (edit) {
       setName(edit.name); setMuscle(edit.primaryMuscle); setEquipment(edit.equipment); setKind(edit.kind); setRule(edit.progressionRule)
-      setInc(fromLb(edit.incrementLb, units)); setMin(edit.repRange.min); setMax(edit.repRange.max)
-    } else { setName(initialName); setInc(units === 'kg' ? 2.5 : 5) }
+      setInc(fromLb(edit.incrementLb, units)); setMin(edit.repRange.min); setMax(edit.repRange.max); setCable(edit.cableStack ?? null)
+    } else { setName(initialName); setInc(units === 'kg' ? 2.5 : 5); setCable(null) }
   }, [open, edit, initialName, units])
   const save = async () => {
     if (!name.trim()) return
@@ -38,7 +41,9 @@ export function CustomExerciseSheet({ open, onClose, onCreated, initialName = ''
       ...(edit ?? { id: uid(), secondaryMuscles: [], isCustom: true, archived: false }),
       name: name.trim(), primaryMuscle: muscle, equipment, kind, progressionRule: rule,
       incrementLb: toLb(inc ?? 0, units), repRange: { min: min ?? 8, max: max ?? 12 },
+      cableStack: kind === 'weight_reps' && cable != null && cable !== (equipment === 'cable') ? cable : undefined,
     }
+    if (ex.cableStack === undefined) delete ex.cableStack
     await db.exercises.put(ex)
     onCreated?.(ex)
     onClose()
@@ -57,8 +62,14 @@ export function CustomExerciseSheet({ open, onClose, onCreated, initialName = ''
           <select className="field mt-1" value={kind} onChange={(e) => setKind(e.target.value as ExerciseKind)}>{KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}</select></label>
         <label className="block"><span className="label">Progression</span>
           <select className="field mt-1" value={rule} onChange={(e) => setRule(e.target.value as ProgressionRule)}>{RULES.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}</select></label>
+        {kind === 'weight_reps' && (
+          <button type="button" className="flex items-center gap-3 w-full text-left" onClick={() => setCable(!cableOn)} role="switch" aria-checked={cableOn}>
+            <div className="flex-1"><div className="font-medium">Cable stack</div><div className="text-xs text-muted">Log as pin + add-on plates (set up in Settings)</div></div>
+            <span className={`relative h-7 w-12 rounded-full transition-colors ${cableOn ? 'bg-accent' : 'bg-surface-3'}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${cableOn ? 'translate-x-6' : 'translate-x-1'}`} /></span>
+          </button>
+        )}
         <div className="grid grid-cols-3 gap-3">
-          <label className="block"><span className="label">Increment ({units})</span><NumberField className="mt-1" value={inc} onChange={setInc} /></label>
+          <label className="block"><span className="label">Increment ({units})</span><NumberField className="mt-1" value={inc} onChange={setInc} disabled={kind === 'weight_reps' && cableOn} placeholder={kind === 'weight_reps' && cableOn ? 'stack' : undefined} /></label>
           <label className="block"><span className="label">Min reps</span><NumberField className="mt-1" value={min} onChange={setMin} integer /></label>
           <label className="block"><span className="label">Max reps</span><NumberField className="mt-1" value={max} onChange={setMax} integer /></label>
         </div>

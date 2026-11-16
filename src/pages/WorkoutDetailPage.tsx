@@ -13,13 +13,14 @@ import { useSettings } from '@/hooks/useSettings'
 import { formatDateTime, formatDuration } from '@/logic/dates'
 import { isCountedSet, workoutSetCount, workoutVolume } from '@/logic/records'
 import { formatVolume, formatWeight, fromLb, toLb } from '@/logic/units'
+import { cableFor, formatSetup } from '@/logic/cableStack'
 import { Stat } from './WorkoutPage'
 
 export default function WorkoutDetailPage() {
   const { id } = useParams()
   const w = useLiveQuery(() => db.workouts.get(id!), [id])
   const exMap = useExerciseMap()
-  const { units } = useSettings()
+  const { units, cableStack } = useSettings()
   const nav = useNavigate()
   const [editing, setEditing] = useState(false)
   if (!w) return <div className="p-8 text-center text-muted">Loading…</div>
@@ -40,6 +41,7 @@ export default function WorkoutDetailPage() {
         {w.exercises.map((e) => {
           const ex = exMap.get(e.exerciseId)
           const showW = ex?.kind === 'weight_reps' || ex?.kind === 'weighted_bodyweight'
+          const cable = cableFor(ex, cableStack)
           return (
             <div key={e.id} className="card">
               <Link to={`/exercises/${e.exerciseId}`} className="block px-4 pt-3 pb-1 font-bold text-accent">{ex?.name ?? e.exerciseId}</Link>
@@ -48,7 +50,7 @@ export default function WorkoutDetailPage() {
                 {e.sets.map((s, i) => (
                   <li key={s.id} className={`flex items-center gap-3 text-sm rounded-lg px-2 py-1 ${s.pr?.length ? 'set-pr' : ''}`}>
                     <span className={`w-6 text-muted num ${s.type === 'warmup' ? 'text-warning' : ''}`}>{s.type === 'warmup' ? 'W' : i + 1}</span>
-                    <span className="num font-medium">{showW && (s.weightLb ?? 0) > 0 ? `${formatWeight(s.weightLb, units)} ${units} × ` : ''}{s.reps}{ex?.kind === 'duration' ? ' s' : ''}</span>
+                    <span className="num font-medium">{showW && (s.weightLb ?? 0) > 0 ? `${(cable && formatSetup(s.weightLb, cable)) ? `${formatSetup(s.weightLb, cable)} · ` : ''}${formatWeight(s.weightLb, units)} ${units} × ` : ''}{s.reps}{ex?.kind === 'duration' ? ' s' : ''}</span>
                     {s.rpe != null && <span className="text-xs text-muted">RPE {s.rpe}</span>}
                     {s.pr?.length ? <span className="ml-auto text-pr inline-flex items-center gap-1 text-xs font-semibold"><Trophy size={12} /> {s.pr.join(', ')}</span> : null}
                   </li>

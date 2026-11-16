@@ -12,6 +12,7 @@ import { effectiveTargets, formatWater, latestBodyweight, totalsFor } from '@/lo
 import { suggest } from '@/logic/progression'
 import { workoutVolume } from '@/logic/records'
 import { formatVolume, formatWeight } from '@/logic/units'
+import { cableFor, formatSetup } from '@/logic/cableStack'
 import { active, progressionOpts, startWorkout } from '@/store/activeWorkout'
 import { Stat } from './WorkoutPage'
 
@@ -65,8 +66,10 @@ export default function HomePage() {
       const ex = exMap.get(id)
       if (!ex || ex.kind === 'duration') continue
       const s = suggest(ex, workouts, progressionOpts(settings, ex))
-      if (s.kind === 'increase') out.push({ id, name: ex.name, text: `${formatWeight(s.weightLb, settings.units, true)} × ${s.reps}` })
-      else if (s.kind === 'deload') out.push({ id, name: ex.name, text: `Deload to ${formatWeight(s.weightLb, settings.units, true)}` })
+      const cable = cableFor(ex, settings.cableStack)
+      const w = (cable && formatSetup(s.weightLb, cable)) || formatWeight(s.weightLb, settings.units, true)
+      if (s.kind === 'increase') out.push({ id, name: ex.name, text: `${w} × ${s.reps}` })
+      else if (s.kind === 'deload') out.push({ id, name: ex.name, text: `Deload to ${w}` })
     }
     return out.slice(0, 6)
   }, [workouts, exMap, settings])
@@ -74,10 +77,11 @@ export default function HomePage() {
   const recentPrs = useMemo(() => {
     const out: { name: string; text: string; when: number }[] = []
     for (const w of workouts.slice(0, 10)) for (const e of w.exercises) for (const s of e.sets) if (s.pr?.length) {
-      out.push({ name: exMap.get(e.exerciseId)?.name ?? '', text: `${formatWeight(s.weightLb, settings.units, true)} × ${s.reps}`, when: w.startedAt })
+      const cable = cableFor(exMap.get(e.exerciseId), settings.cableStack)
+      out.push({ name: exMap.get(e.exerciseId)?.name ?? '', text: `${(cable && formatSetup(s.weightLb, cable)) || formatWeight(s.weightLb, settings.units, true)} × ${s.reps}`, when: w.startedAt })
     }
     return out.slice(0, 5)
-  }, [workouts, exMap, settings.units])
+  }, [workouts, exMap, settings.units, settings.cableStack])
 
   return (
     <div className="fade-in">
